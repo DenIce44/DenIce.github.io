@@ -1,0 +1,9 @@
+.DS_Store
+*.jtl
+*.log
+jmeter.log
+results/
+reports/
+*-report/
+**/data/*.csv
+!**/data/*.example.csv
