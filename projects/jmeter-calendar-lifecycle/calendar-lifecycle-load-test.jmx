@@ -1,0 +1,645 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Resilient calendar lifecycle load test">
+      <stringProp name="TestPlan.comments">Portfolio-safe JMeter 5.6.3 plan for authenticated calendar lifecycle testing. Each arrival signs in, runs the selected workspace and/or personal flow, asserts creation and list visibility, and finishes with an ID-guarded DELETE. All public endpoints and data are placeholders.</stringProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="apiHost" elementType="Argument">
+            <stringProp name="Argument.name">apiHost</stringProp>
+            <stringProp name="Argument.value">${__P(apiHost,api.example.invalid)}</stringProp>
+            <stringProp name="Argument.desc">Target API host. The reserved .invalid default prevents accidental traffic.</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="protocol" elementType="Argument">
+            <stringProp name="Argument.name">protocol</stringProp>
+            <stringProp name="Argument.value">${__P(protocol,https)}</stringProp>
+            <stringProp name="Argument.desc">Target HTTP protocol</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="apiPort" elementType="Argument">
+            <stringProp name="Argument.name">apiPort</stringProp>
+            <stringProp name="Argument.value">${__P(apiPort,443)}</stringProp>
+            <stringProp name="Argument.desc">Target API port</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="signInPath" elementType="Argument">
+            <stringProp name="Argument.name">signInPath</stringProp>
+            <stringProp name="Argument.value">${__P(signInPath,/api/v1/auth/sign-in)}</stringProp>
+            <stringProp name="Argument.desc">Environment-specific sign-in path</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="workspaceCalendarsPath" elementType="Argument">
+            <stringProp name="Argument.name">workspaceCalendarsPath</stringProp>
+            <stringProp name="Argument.value">${__P(workspaceCalendarsPath,/api/v1/workspaces/calendars)}</stringProp>
+            <stringProp name="Argument.desc">Environment-specific workspace calendar collection path</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="personalCalendarsPath" elementType="Argument">
+            <stringProp name="Argument.name">personalCalendarsPath</stringProp>
+            <stringProp name="Argument.value">${__P(personalCalendarsPath,/api/v1/calendars)}</stringProp>
+            <stringProp name="Argument.desc">Environment-specific personal calendar collection path</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="authTokenJsonPath" elementType="Argument">
+            <stringProp name="Argument.name">authTokenJsonPath</stringProp>
+            <stringProp name="Argument.value">${__P(authTokenJsonPath,$.auth_token)}</stringProp>
+            <stringProp name="Argument.desc">JSONPath used to extract the bearer token from sign-in</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+    </TestPlan>
+    <hashTree>
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+          <collectionProp name="Arguments.arguments" />
+        </elementProp>
+        <stringProp name="HTTPSampler.connect_timeout">${__P(connectTimeoutMs,10000)}</stringProp>
+        <stringProp name="HTTPSampler.response_timeout">${__P(responseTimeoutMs,30000)}</stringProp>
+        <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+        <stringProp name="TestPlan.comments">Shared HttpClient4 implementation with bounded connection and response timeouts.</stringProp>
+      </ConfigTestElement>
+      <hashTree />
+      <CookieManager guiclass="CookiePanel" testclass="CookieManager" testname="HTTP Cookie Manager">
+        <collectionProp name="CookieManager.cookies" />
+        <boolProp name="CookieManager.clearEachIteration">true</boolProp>
+        <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
+        <stringProp name="TestPlan.comments">Cookies are cleared between iterations so identities cannot share a session.</stringProp>
+      </CookieManager>
+      <hashTree />
+      <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Users CSV">
+        <stringProp name="filename">${__P(usersCsv,data/users.example.csv)}</stringProp>
+        <stringProp name="fileEncoding" />
+        <stringProp name="variableNames">email,password</stringProp>
+        <boolProp name="ignoreFirstLine">true</boolProp>
+        <stringProp name="delimiter">,</stringProp>
+        <boolProp name="quotedData">false</boolProp>
+        <boolProp name="recycle">true</boolProp>
+        <boolProp name="stopThread">false</boolProp>
+        <stringProp name="shareMode">shareMode.all</stringProp>
+        <stringProp name="TestPlan.comments">Format: email,password. Use dedicated test accounts and keep real credentials out of version control.</stringProp>
+      </CSVDataSet>
+      <hashTree />
+      <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Calendar data CSV">
+        <stringProp name="filename">${__P(calendarsCsv,data/calendars.example.csv)}</stringProp>
+        <stringProp name="fileEncoding" />
+        <stringProp name="variableNames">workspaceName,workspaceUrl,personalName,personalUrl</stringProp>
+        <boolProp name="ignoreFirstLine">true</boolProp>
+        <stringProp name="delimiter">,</stringProp>
+        <boolProp name="quotedData">false</boolProp>
+        <boolProp name="recycle">false</boolProp>
+        <boolProp name="stopThread">true</boolProp>
+        <stringProp name="shareMode">shareMode.all</stringProp>
+        <stringProp name="TestPlan.comments">Format: workspaceName,workspaceUrl,personalName,personalUrl. Rows are shared globally, are not recycled, and stop a thread at EOF.</stringProp>
+      </CSVDataSet>
+      <hashTree />
+      <OpenModelThreadGroup guiclass="OpenModelThreadGroupGui" testclass="OpenModelThreadGroup" testname="Calendar lifecycle arrivals">
+        <stringProp name="OpenModelThreadGroup.schedule">${__P(loadSchedule,rate(1/sec) even_arrivals(10 sec))} pause(${__P(cleanupGraceSeconds,20)} sec)</stringProp>
+        <longProp name="OpenModelThreadGroup.random_seed">8675309</longProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="OpenModelThreadGroupController" />
+        <stringProp name="TestPlan.comments">loadSchedule defines business-flow arrivals, not raw HTTP request rate. The final pause starts no new arrivals and lets in-flight flows reach cleanup.</stringProp>
+      </OpenModelThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Reset state and select calendar branches">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters" />
+          <stringProp name="filename" />
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">vars.remove('workspaceCalendarId')
+vars.remove('personalCalendarId')
+vars.remove('token')
+
+def mode = (props.get('calendarMode') ?: 'BOTH').toUpperCase()
+def workspacePct = (props.get('workspacePct') ?: '50').toInteger()
+def runWorkspace
+def runPersonal
+
+switch (mode) {
+    case 'WORKSPACE':
+        runWorkspace = true
+        runPersonal = false
+        break
+    case 'PERSONAL':
+        runWorkspace = false
+        runPersonal = true
+        break
+    case 'BOTH':
+        runWorkspace = true
+        runPersonal = true
+        break
+    case 'MIXED':
+        if (workspacePct &lt; 0 || workspacePct &gt; 100) {
+            SampleResult.setSuccessful(false)
+            SampleResult.setResponseCode('CONFIG_ERROR')
+            SampleResult.setResponseMessage('workspacePct must be between 0 and 100')
+            return
+        }
+        runWorkspace = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) &lt; workspacePct
+        runPersonal = !runWorkspace
+        break
+    default:
+        SampleResult.setSuccessful(false)
+        SampleResult.setResponseCode('CONFIG_ERROR')
+        SampleResult.setResponseMessage('calendarMode must be BOTH, WORKSPACE, PERSONAL, or MIXED')
+        return
+}
+
+vars.put('runWorkspace', runWorkspace.toString())
+vars.put('runPersonal', runPersonal.toString())
+SampleResult.setIgnore()</stringProp>
+          <stringProp name="TestPlan.comments">Clears per-arrival IDs and bearer state. calendarMode accepts BOTH, WORKSPACE, PERSONAL, or MIXED; workspacePct is used only in MIXED mode.</stringProp>
+        </JSR223Sampler>
+        <hashTree />
+        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="Authenticate virtual user">
+          <boolProp name="TransactionController.includeTimers">false</boolProp>
+          <stringProp name="TestPlan.comments">Signs in with a dedicated CSV test account and extracts a bearer token.</stringProp>
+        </TransactionController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="SIGN IN" enabled="true">
+            <stringProp name="HTTPSampler.domain">${apiHost}</stringProp>
+            <stringProp name="HTTPSampler.port">${apiPort}</stringProp>
+            <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+            <stringProp name="HTTPSampler.path">${signInPath}</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{"user":{"email":"${email}","password":"${password}","remember_me":false}}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree />
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract bearer token" enabled="true">
+              <stringProp name="JSONPostProcessor.referenceNames">token</stringProp>
+              <stringProp name="JSONPostProcessor.jsonPathExprs">${authTokenJsonPath}</stringProp>
+              <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+            </JSONPostProcessor>
+            <hashTree />
+            <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Validate bearer token" enabled="true">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="parameters" />
+              <stringProp name="filename" />
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script">def value = vars.get('token')
+if (value == null || value.trim().isEmpty() || value == 'NOT_FOUND') {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Sign-in did not return a usable bearer token')
+}</stringProp>
+            </JSR223Assertion>
+            <hashTree />
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Sign-in response status" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="49586">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">Expected HTTP 200 while authenticating the virtual user</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+            </ResponseAssertion>
+            <hashTree />
+          </hashTree>
+        </hashTree>
+        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Authenticated calendar lifecycle" enabled="true">
+          <stringProp name="IfController.condition">${__groovy(def token = vars.get('token'); token != null &amp;&amp; !token.trim().isEmpty() &amp;&amp; token != 'NOT_FOUND')}</stringProp>
+          <boolProp name="IfController.evaluateAll">false</boolProp>
+          <boolProp name="IfController.useExpression">true</boolProp>
+          <stringProp name="TestPlan.comments">Lifecycle calls run only after a valid bearer token is extracted; a failed sign-in cannot reuse a previous identity.</stringProp>
+        </IfController>
+        <hashTree>
+          <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="Calendar lifecycle transaction" enabled="true">
+            <boolProp name="TransactionController.includeTimers">false</boolProp>
+            <stringProp name="TestPlan.comments">Runs the selected create, list verification, and final cleanup branches.</stringProp>
+          </TransactionController>
+          <hashTree>
+            <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Workspace create → verify → delete" enabled="true">
+              <stringProp name="IfController.condition">${runWorkspace}</stringProp>
+              <boolProp name="IfController.evaluateAll">false</boolProp>
+              <boolProp name="IfController.useExpression">true</boolProp>
+            </IfController>
+            <hashTree>
+              <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Create Workspace calendar" enabled="true">
+                <stringProp name="HTTPSampler.domain">${apiHost}</stringProp>
+                <stringProp name="HTTPSampler.port">${apiPort}</stringProp>
+                <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+                <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+                <stringProp name="HTTPSampler.path">${workspaceCalendarsPath}</stringProp>
+                <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+                <stringProp name="HTTPSampler.method">POST</stringProp>
+                <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+                <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+                <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+                  <collectionProp name="Arguments.arguments">
+                    <elementProp name="" elementType="HTTPArgument">
+                      <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                      <stringProp name="Argument.value">{
+  "calendar": {
+    "name": "${workspaceName}-WS-${__UUID}",
+    "url": "${workspaceUrl}"
+  }
+}</stringProp>
+                      <stringProp name="Argument.metadata">=</stringProp>
+                    </elementProp>
+                  </collectionProp>
+                </elementProp>
+              </HTTPSamplerProxy>
+              <hashTree>
+                <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="API headers" enabled="true">
+                  <collectionProp name="HeaderManager.headers">
+                    <elementProp name="Accept" elementType="Header">
+                      <stringProp name="Header.name">Accept</stringProp>
+                      <stringProp name="Header.value">application/json</stringProp>
+                    </elementProp>
+                    <elementProp name="Authorization" elementType="Header">
+                      <stringProp name="Header.name">Authorization</stringProp>
+                      <stringProp name="Header.value">Bearer ${token}</stringProp>
+                    </elementProp>
+                    <elementProp name="Content-Type" elementType="Header">
+                      <stringProp name="Header.name">Content-Type</stringProp>
+                      <stringProp name="Header.value">application/json</stringProp>
+                    </elementProp>
+                  </collectionProp>
+                </HeaderManager>
+                <hashTree />
+                <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Workspace calendar ID" enabled="true">
+                  <stringProp name="JSONPostProcessor.referenceNames">workspaceCalendarId</stringProp>
+                  <stringProp name="JSONPostProcessor.jsonPathExprs">$.id</stringProp>
+                  <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+                  <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+                </JSONPostProcessor>
+                <hashTree />
+                <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Validate Workspace calendar ID" enabled="true">
+                  <stringProp name="scriptLanguage">groovy</stringProp>
+                  <stringProp name="parameters" />
+                  <stringProp name="filename" />
+                  <stringProp name="cacheKey">true</stringProp>
+                  <stringProp name="script">def calendarId = vars.get('workspaceCalendarId')
+if (prev.getResponseCode() == '201' &amp;&amp; (calendarId == null || calendarId.trim().isEmpty() || calendarId == 'NOT_FOUND')) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Workspace calendar ID was not returned by a successful create request; cleanup is not possible')
+}</stringProp>
+                </JSR223Assertion>
+                <hashTree />
+                <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Create Workspace calendar status" enabled="true">
+                  <collectionProp name="Asserion.test_strings">
+                    <stringProp name="49587">201</stringProp>
+                  </collectionProp>
+                  <stringProp name="Assertion.custom_message">Expected HTTP 201 while creating the workspace calendar</stringProp>
+                  <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+                  <boolProp name="Assertion.assume_success">false</boolProp>
+                  <intProp name="Assertion.test_type">8</intProp>
+                </ResponseAssertion>
+                <hashTree />
+              </hashTree>
+              <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Verify Workspace calendar after successful create" enabled="true">
+                <stringProp name="IfController.condition">${__groovy(def id = vars.get('workspaceCalendarId'); id != null &amp;&amp; !id.trim().isEmpty() &amp;&amp; id != 'NOT_FOUND')}</stringProp>
+                <boolProp name="IfController.evaluateAll">false</boolProp>
+                <boolProp name="IfController.useExpression">true</boolProp>
+                <stringProp name="TestPlan.comments">The list response must contain the exact ID returned by create; this detects persistence or visibility regressions.</stringProp>
+              </IfController>
+              <hashTree>
+                <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Verify Workspace calendar exists" enabled="true">
+                  <stringProp name="HTTPSampler.domain">${apiHost}</stringProp>
+                  <stringProp name="HTTPSampler.port">${apiPort}</stringProp>
+                  <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+                  <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+                  <stringProp name="HTTPSampler.path">${workspaceCalendarsPath}</stringProp>
+                  <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+                  <stringProp name="HTTPSampler.method">GET</stringProp>
+                  <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+                  <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+                  <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+                    <collectionProp name="Arguments.arguments" />
+                  </elementProp>
+                </HTTPSamplerProxy>
+                <hashTree>
+                  <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="API headers" enabled="true">
+                    <collectionProp name="HeaderManager.headers">
+                      <elementProp name="Accept" elementType="Header">
+                        <stringProp name="Header.name">Accept</stringProp>
+                        <stringProp name="Header.value">application/json</stringProp>
+                      </elementProp>
+                      <elementProp name="Authorization" elementType="Header">
+                        <stringProp name="Header.name">Authorization</stringProp>
+                        <stringProp name="Header.value">Bearer ${token}</stringProp>
+                      </elementProp>
+                    </collectionProp>
+                  </HeaderManager>
+                  <hashTree />
+                  <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Verify Workspace calendar status" enabled="true">
+                    <collectionProp name="Asserion.test_strings">
+                      <stringProp name="49586">200</stringProp>
+                    </collectionProp>
+                    <stringProp name="Assertion.custom_message">Expected HTTP 200 while verifying the workspace calendar</stringProp>
+                    <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+                    <boolProp name="Assertion.assume_success">false</boolProp>
+                    <intProp name="Assertion.test_type">8</intProp>
+                  </ResponseAssertion>
+                  <hashTree />
+                  <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Workspace calendar IDs" enabled="true">
+                    <stringProp name="JSONPostProcessor.referenceNames">workspaceCalendarIds</stringProp>
+                    <stringProp name="JSONPostProcessor.jsonPathExprs">$..id</stringProp>
+                    <stringProp name="JSONPostProcessor.match_numbers">-1</stringProp>
+                    <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+                  </JSONPostProcessor>
+                  <hashTree />
+                  <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Verify Workspace calendar ID is present" enabled="true">
+                    <stringProp name="scriptLanguage">groovy</stringProp>
+                    <stringProp name="parameters" />
+                    <stringProp name="filename" />
+                    <stringProp name="cacheKey">true</stringProp>
+                    <stringProp name="script">def expected = vars.get('workspaceCalendarId')
+def count = (vars.get('workspaceCalendarIds_matchNr') ?: '0').toInteger()
+def found = false
+for (int i = 1; i &lt;= count; i++) {
+    if (vars.get('workspaceCalendarIds_' + i) == expected) {
+        found = true
+        break
+    }
+}
+if (!found) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Workspace calendar ' + expected + ' was not present in the list response')
+}</stringProp>
+                  </JSR223Assertion>
+                  <hashTree />
+                </hashTree>
+              </hashTree>
+              <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Cleanup Workspace calendar (mandatory)" enabled="true">
+                <stringProp name="IfController.condition">${__groovy(def id = vars.get('workspaceCalendarId'); id != null &amp;&amp; !id.trim().isEmpty() &amp;&amp; id != 'NOT_FOUND')}</stringProp>
+                <boolProp name="IfController.evaluateAll">false</boolProp>
+                <boolProp name="IfController.useExpression">true</boolProp>
+                <stringProp name="TestPlan.comments">Mandatory for every successfully created resource with a valid extracted ID. Forced JVM termination cannot guarantee cleanup; do not use Stop Test Now.</stringProp>
+              </IfController>
+              <hashTree>
+                <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELETE Workspace calendar (mandatory)" enabled="true">
+                  <stringProp name="HTTPSampler.domain">${apiHost}</stringProp>
+                  <stringProp name="HTTPSampler.port">${apiPort}</stringProp>
+                  <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+                  <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+                  <stringProp name="HTTPSampler.path">${workspaceCalendarsPath}/${workspaceCalendarId}</stringProp>
+                  <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+                  <stringProp name="HTTPSampler.method">DELETE</stringProp>
+                  <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+                  <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+                  <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+                    <collectionProp name="Arguments.arguments" />
+                  </elementProp>
+                </HTTPSamplerProxy>
+                <hashTree>
+                  <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="API headers" enabled="true">
+                    <collectionProp name="HeaderManager.headers">
+                      <elementProp name="Accept" elementType="Header">
+                        <stringProp name="Header.name">Accept</stringProp>
+                        <stringProp name="Header.value">application/json</stringProp>
+                      </elementProp>
+                      <elementProp name="Authorization" elementType="Header">
+                        <stringProp name="Header.name">Authorization</stringProp>
+                        <stringProp name="Header.value">Bearer ${token}</stringProp>
+                      </elementProp>
+                    </collectionProp>
+                  </HeaderManager>
+                  <hashTree />
+                  <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Delete Workspace calendar status" enabled="true">
+                    <collectionProp name="Asserion.test_strings">
+                      <stringProp name="49586">200</stringProp>
+                    </collectionProp>
+                    <stringProp name="Assertion.custom_message">Mandatory workspace calendar cleanup expected HTTP 200</stringProp>
+                    <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+                    <boolProp name="Assertion.assume_success">false</boolProp>
+                    <intProp name="Assertion.test_type">8</intProp>
+                  </ResponseAssertion>
+                  <hashTree />
+                </hashTree>
+              </hashTree>
+            </hashTree>
+            <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Personal create → verify → delete" enabled="true">
+              <stringProp name="IfController.condition">${runPersonal}</stringProp>
+              <boolProp name="IfController.evaluateAll">false</boolProp>
+              <boolProp name="IfController.useExpression">true</boolProp>
+            </IfController>
+            <hashTree>
+              <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Create Personal calendar" enabled="true">
+                <stringProp name="HTTPSampler.domain">${apiHost}</stringProp>
+                <stringProp name="HTTPSampler.port">${apiPort}</stringProp>
+                <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+                <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+                <stringProp name="HTTPSampler.path">${personalCalendarsPath}</stringProp>
+                <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+                <stringProp name="HTTPSampler.method">POST</stringProp>
+                <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+                <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+                <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+                  <collectionProp name="Arguments.arguments">
+                    <elementProp name="" elementType="HTTPArgument">
+                      <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                      <stringProp name="Argument.value">{
+  "calendar": {
+    "name": "${personalName}-P-${__UUID}",
+    "url": "${personalUrl}"
+  }
+}</stringProp>
+                      <stringProp name="Argument.metadata">=</stringProp>
+                    </elementProp>
+                  </collectionProp>
+                </elementProp>
+              </HTTPSamplerProxy>
+              <hashTree>
+                <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="API headers" enabled="true">
+                  <collectionProp name="HeaderManager.headers">
+                    <elementProp name="Accept" elementType="Header">
+                      <stringProp name="Header.name">Accept</stringProp>
+                      <stringProp name="Header.value">application/json</stringProp>
+                    </elementProp>
+                    <elementProp name="Authorization" elementType="Header">
+                      <stringProp name="Header.name">Authorization</stringProp>
+                      <stringProp name="Header.value">Bearer ${token}</stringProp>
+                    </elementProp>
+                    <elementProp name="Content-Type" elementType="Header">
+                      <stringProp name="Header.name">Content-Type</stringProp>
+                      <stringProp name="Header.value">application/json</stringProp>
+                    </elementProp>
+                  </collectionProp>
+                </HeaderManager>
+                <hashTree />
+                <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Personal calendar ID" enabled="true">
+                  <stringProp name="JSONPostProcessor.referenceNames">personalCalendarId</stringProp>
+                  <stringProp name="JSONPostProcessor.jsonPathExprs">$.id</stringProp>
+                  <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+                  <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+                </JSONPostProcessor>
+                <hashTree />
+                <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Validate Personal calendar ID" enabled="true">
+                  <stringProp name="scriptLanguage">groovy</stringProp>
+                  <stringProp name="parameters" />
+                  <stringProp name="filename" />
+                  <stringProp name="cacheKey">true</stringProp>
+                  <stringProp name="script">def calendarId = vars.get('personalCalendarId')
+if (prev.getResponseCode() == '201' &amp;&amp; (calendarId == null || calendarId.trim().isEmpty() || calendarId == 'NOT_FOUND')) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Personal calendar ID was not returned by a successful create request; cleanup is not possible')
+}</stringProp>
+                </JSR223Assertion>
+                <hashTree />
+                <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Create Personal calendar status" enabled="true">
+                  <collectionProp name="Asserion.test_strings">
+                    <stringProp name="49587">201</stringProp>
+                  </collectionProp>
+                  <stringProp name="Assertion.custom_message">Expected HTTP 201 while creating the personal calendar</stringProp>
+                  <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+                  <boolProp name="Assertion.assume_success">false</boolProp>
+                  <intProp name="Assertion.test_type">8</intProp>
+                </ResponseAssertion>
+                <hashTree />
+              </hashTree>
+              <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Verify Personal calendar after successful create" enabled="true">
+                <stringProp name="IfController.condition">${__groovy(def id = vars.get('personalCalendarId'); id != null &amp;&amp; !id.trim().isEmpty() &amp;&amp; id != 'NOT_FOUND')}</stringProp>
+                <boolProp name="IfController.evaluateAll">false</boolProp>
+                <boolProp name="IfController.useExpression">true</boolProp>
+                <stringProp name="TestPlan.comments">The list response must contain the exact ID returned by create; this detects persistence or visibility regressions.</stringProp>
+              </IfController>
+              <hashTree>
+                <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Verify Personal calendar exists" enabled="true">
+                  <stringProp name="HTTPSampler.domain">${apiHost}</stringProp>
+                  <stringProp name="HTTPSampler.port">${apiPort}</stringProp>
+                  <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+                  <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+                  <stringProp name="HTTPSampler.path">${personalCalendarsPath}</stringProp>
+                  <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+                  <stringProp name="HTTPSampler.method">GET</stringProp>
+                  <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+                  <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+                  <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+                    <collectionProp name="Arguments.arguments" />
+                  </elementProp>
+                </HTTPSamplerProxy>
+                <hashTree>
+                  <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="API headers" enabled="true">
+                    <collectionProp name="HeaderManager.headers">
+                      <elementProp name="Accept" elementType="Header">
+                        <stringProp name="Header.name">Accept</stringProp>
+                        <stringProp name="Header.value">application/json</stringProp>
+                      </elementProp>
+                      <elementProp name="Authorization" elementType="Header">
+                        <stringProp name="Header.name">Authorization</stringProp>
+                        <stringProp name="Header.value">Bearer ${token}</stringProp>
+                      </elementProp>
+                    </collectionProp>
+                  </HeaderManager>
+                  <hashTree />
+                  <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Verify Personal calendar status" enabled="true">
+                    <collectionProp name="Asserion.test_strings">
+                      <stringProp name="49586">200</stringProp>
+                    </collectionProp>
+                    <stringProp name="Assertion.custom_message">Expected HTTP 200 while verifying the personal calendar</stringProp>
+                    <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+                    <boolProp name="Assertion.assume_success">false</boolProp>
+                    <intProp name="Assertion.test_type">8</intProp>
+                  </ResponseAssertion>
+                  <hashTree />
+                  <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Personal calendar IDs" enabled="true">
+                    <stringProp name="JSONPostProcessor.referenceNames">personalCalendarIds</stringProp>
+                    <stringProp name="JSONPostProcessor.jsonPathExprs">$..id</stringProp>
+                    <stringProp name="JSONPostProcessor.match_numbers">-1</stringProp>
+                    <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+                  </JSONPostProcessor>
+                  <hashTree />
+                  <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Verify Personal calendar ID is present" enabled="true">
+                    <stringProp name="scriptLanguage">groovy</stringProp>
+                    <stringProp name="parameters" />
+                    <stringProp name="filename" />
+                    <stringProp name="cacheKey">true</stringProp>
+                    <stringProp name="script">def expected = vars.get('personalCalendarId')
+def count = (vars.get('personalCalendarIds_matchNr') ?: '0').toInteger()
+def found = false
+for (int i = 1; i &lt;= count; i++) {
+    if (vars.get('personalCalendarIds_' + i) == expected) {
+        found = true
+        break
+    }
+}
+if (!found) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Personal calendar ' + expected + ' was not present in the list response')
+}</stringProp>
+                  </JSR223Assertion>
+                  <hashTree />
+                </hashTree>
+              </hashTree>
+              <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Cleanup Personal calendar (mandatory)" enabled="true">
+                <stringProp name="IfController.condition">${__groovy(def id = vars.get('personalCalendarId'); id != null &amp;&amp; !id.trim().isEmpty() &amp;&amp; id != 'NOT_FOUND')}</stringProp>
+                <boolProp name="IfController.evaluateAll">false</boolProp>
+                <boolProp name="IfController.useExpression">true</boolProp>
+                <stringProp name="TestPlan.comments">Mandatory for every successfully created resource with a valid extracted ID. Forced JVM termination cannot guarantee cleanup; do not use Stop Test Now.</stringProp>
+              </IfController>
+              <hashTree>
+                <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELETE Personal calendar (mandatory)" enabled="true">
+                  <stringProp name="HTTPSampler.domain">${apiHost}</stringProp>
+                  <stringProp name="HTTPSampler.port">${apiPort}</stringProp>
+                  <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+                  <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+                  <stringProp name="HTTPSampler.path">${personalCalendarsPath}/${personalCalendarId}</stringProp>
+                  <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+                  <stringProp name="HTTPSampler.method">DELETE</stringProp>
+                  <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+                  <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+                  <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+                    <collectionProp name="Arguments.arguments" />
+                  </elementProp>
+                </HTTPSamplerProxy>
+                <hashTree>
+                  <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="API headers" enabled="true">
+                    <collectionProp name="HeaderManager.headers">
+                      <elementProp name="Accept" elementType="Header">
+                        <stringProp name="Header.name">Accept</stringProp>
+                        <stringProp name="Header.value">application/json</stringProp>
+                      </elementProp>
+                      <elementProp name="Authorization" elementType="Header">
+                        <stringProp name="Header.name">Authorization</stringProp>
+                        <stringProp name="Header.value">Bearer ${token}</stringProp>
+                      </elementProp>
+                    </collectionProp>
+                  </HeaderManager>
+                  <hashTree />
+                  <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Delete Personal calendar status" enabled="true">
+                    <collectionProp name="Asserion.test_strings">
+                      <stringProp name="49586">200</stringProp>
+                    </collectionProp>
+                    <stringProp name="Assertion.custom_message">Mandatory personal calendar cleanup expected HTTP 200</stringProp>
+                    <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+                    <boolProp name="Assertion.assume_success">false</boolProp>
+                    <intProp name="Assertion.test_type">8</intProp>
+                  </ResponseAssertion>
+                  <hashTree />
+                </hashTree>
+              </hashTree>
+            </hashTree>
+          </hashTree>
+        </hashTree>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
